@@ -189,7 +189,7 @@ EL::StatusCode JetCalibrator :: initialize ()
   m_numObject     = 0;
 
   //Insitu should not be applied to the trimmed jets, per Jet/Etmiss recommendation
-  if ( !m_isMC && m_calibSequence.find("Insitu") == std::string::npos && m_inContainerName.find("AntiKt10LCTopoTrimmedPtFrac5SmallR20") == std::string::npos) m_calibSequence += "_Insitu";
+  // if ( !m_isMC && m_calibSequence.find("Insitu") == std::string::npos && m_inContainerName.find("AntiKt10LCTopoTrimmedPtFrac5SmallR20") == std::string::npos) m_calibSequence += "_Insitu";
 
   if( m_isMC && m_calibSequence.find("Insitu") != std::string::npos){
     Error("initialize()", "Attempting to use an Insitu calibration sequence on MC.  Exiting.");
@@ -460,7 +460,8 @@ EL::StatusCode JetCalibrator :: execute ()
 
       bool isBjet = false; // decide whether or not the jet is a b-jet (truth-labelling + kinematic selections)
       if (this_TruthLabel == 5) isBjet = true;
-      static SG::AuxElement::Decorator<char> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
+      // static SG::AuxElement::Decorator<char> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
+      static SG::AuxElement::Decorator<int> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
       accIsBjet(*jet_itr) = isBjet;
     }
 
@@ -546,7 +547,8 @@ EL::StatusCode JetCalibrator :: execute ()
       // decorate with cleaning decision
       for ( auto jet_itr : *(uncertCalibJetsSC.first) ) {
 
-        static SG::AuxElement::Decorator< char > isCleanDecor( "cleanJet" );
+        // static SG::AuxElement::Decorator< char > isCleanDecor( "cleanJet" );
+        static SG::AuxElement::Decorator< int > isCleanDecor( "cleanJet" );
         const xAOD::Jet* jetToClean = jet_itr;
 
         if(m_cleanParent){
@@ -562,7 +564,8 @@ EL::StatusCode JetCalibrator :: execute ()
 
         if( m_saveAllCleanDecisions ){
           for(unsigned int i=0; i < m_allJetCleaningTools.size() ; ++i){
-            jet_itr->auxdata< char >(("clean_pass"+m_decisionNames.at(i)).c_str()) = m_allJetCleaningTools.at(i)->accept(*jetToClean);
+            // jet_itr->auxdata< char >(("clean_pass"+m_decisionNames.at(i)).c_str()) = m_allJetCleaningTools.at(i)->accept(*jetToClean);
+            jet_itr->auxdata< int >(("clean_pass"+m_decisionNames.at(i)).c_str()) = m_allJetCleaningTools.at(i)->accept(*jetToClean);
           }
         }
       } //end cleaning decision

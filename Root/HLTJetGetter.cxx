@@ -138,7 +138,6 @@ EL::StatusCode HLTJetGetter :: execute ()
     const Trig::ChainGroup * chainGroup = m_trigDecTool->getChainGroup(m_triggerList.c_str()); //Trigger list:
     auto chainFeatures = chainGroup->features(); //Gets features associated to chain defined above
     auto JetFeatureContainers = chainFeatures.containerFeature<xAOD::JetContainer>(m_inContainerName.c_str());
-
     RETURN_CHECK("HLTJetGetter::execute()", m_store->record( hltJets,    m_outContainerName),     "Failed to record selected hltJets");
     RETURN_CHECK("HLTJetGetter::execute()", m_store->record( hltJetsAux, m_outContainerName+"Aux."), "Failed to record selected hltJetsAux.");
 
@@ -151,7 +150,6 @@ EL::StatusCode HLTJetGetter :: execute ()
     }//end feature container loop
 
     if ( m_verbose ) { m_store->print(); }
-
     return EL::StatusCode::SUCCESS;
 }
 

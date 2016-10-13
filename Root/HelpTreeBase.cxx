@@ -1037,8 +1037,16 @@ void HelpTreeBase::FillJets( const xAOD::JetContainer* jets, int pvLocation, con
   }
 
   for( auto jet_itr : *jets ) {
+    // cwk debug start
+    std::cout<<"at filling HTB " << jetName;
+    if( jet_itr->isAvailable< float >( "constitScaleEta" ) )
+      std::cout << ": " << jet_itr->auxdata< float >("constitScaleEta") << std::endl;
+    else
+      std::cout << ": not available" << std::endl;
+    // cwk debug end
     this->FillJet(jet_itr, pv, pvLocation, jetName);
   }
+
 
 }
 

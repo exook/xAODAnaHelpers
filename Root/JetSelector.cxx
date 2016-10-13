@@ -490,13 +490,15 @@ bool JetSelector :: executeSelection ( const xAOD::JetContainer* inJets,
   int nPass(0); int nObj(0);
   bool passEventClean(true);
 
-  static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
+  // static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
+  static SG::AuxElement::Accessor< int > isCleanAcc("cleanJet");
 
   //
   // This cannot be static as multiple instance of Jet Selector would
   //   then share the same passSelDecor, including the m_decor name
   //
-  SG::AuxElement::Decorator< char > passSelDecor( m_decor );
+  // SG::AuxElement::Decorator< char > passSelDecor( m_decor );
+  SG::AuxElement::Decorator< int > passSelDecor( m_decor );
 
   for ( auto jet_itr : *inJets ) { // duplicated of basic loop
 
@@ -717,7 +719,8 @@ int JetSelector :: PassCuts( const xAOD::Jet* jet ) {
   if(m_useCutFlow) m_jet_cutflowHist_1->Fill( m_jet_cutflow_all, 1 );
 
   // clean jets
-  static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
+  // static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
+  static SG::AuxElement::Accessor< int > isCleanAcc("cleanJet");
   if ( m_cleanJets ) {
     if ( isCleanAcc.isAvailable( *jet ) ) {
       if ( !isCleanAcc( *jet ) ) { return 0; }
@@ -867,14 +870,16 @@ int JetSelector :: PassCuts( const xAOD::Jet* jet ) {
   //  Pass Keys
   //
   for ( auto& passKey : m_passKeys ) {
-    if ( !(jet->auxdata< char >(passKey) == '1') ) { return 0;}
+    // if ( !(jet->auxdata< char >(passKey) == '1') ) { return 0;}
+    if ( !(jet->auxdata< int >(passKey) == 1) ) { return 0;}
   }
 
   //
   //  Fail Keys
   //
   for ( auto& failKey : m_failKeys ){
-    if ( !(jet->auxdata< char >(failKey) == '0') ) { return 0;}
+    // if ( !(jet->auxdata< char >(failKey) == '0') ) { return 0;}
+    if ( !(jet->auxdata< int >(failKey) == 0) ) { return 0;}
   }
 
   //

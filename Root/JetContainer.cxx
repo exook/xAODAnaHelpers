@@ -1188,14 +1188,23 @@ void JetContainer::setBranches(TTree *tree)
 
 
   if ( m_infoSwitch.m_energy ) {
-    setBranch<float>(tree,"_HECFrac",                   m_HECFrac            );
-    setBranch<float>(tree,"_EMFrac",                    m_EMFrac     );
-    setBranch<float>(tree,"_CentroidR",                 m_CentroidR      );
-    setBranch<float>(tree,"_FracSamplingMax",           m_FracSamplingMax    );
-    setBranch<float>(tree,"_FracSamplingMaxIndex",      m_FracSamplingMaxIndex );
-    setBranch<float>(tree,"_LowEtConstituentsFrac",     m_LowEtConstituentsFrac      );
-    setBranch<float>(tree,"_GhostMuonSegmentCount",     m_GhostMuonSegmentCount   );
-    setBranch<float>(tree,"_Width",                     m_Width          );
+    // setBranch<float>(tree,"_HECFrac",                   m_HECFrac            );
+    // setBranch<float>(tree,"_EMFrac",                    m_EMFrac     );
+    // setBranch<float>(tree,"_CentroidR",                 m_CentroidR      );
+    // setBranch<float>(tree,"_FracSamplingMax",           m_FracSamplingMax    );
+    // setBranch<float>(tree,"_FracSamplingMaxIndex",      m_FracSamplingMaxIndex );
+    // setBranch<float>(tree,"_LowEtConstituentsFrac",     m_LowEtConstituentsFrac      );
+    // setBranch<float>(tree,"_GhostMuonSegmentCount",     m_GhostMuonSegmentCount   );
+    // setBranch<float>(tree,"_Width",                     m_Width          );
+    // CWK: the above results in output like jet__HECFrac rather than jet_HECFrac
+    setBranch<float>(tree,"HECFrac",                   m_HECFrac            );
+    setBranch<float>(tree,"EMFrac",                    m_EMFrac     );
+    setBranch<float>(tree,"CentroidR",                 m_CentroidR      );
+    setBranch<float>(tree,"FracSamplingMax",           m_FracSamplingMax    );
+    setBranch<float>(tree,"FracSamplingMaxIndex",      m_FracSamplingMaxIndex );
+    setBranch<float>(tree,"LowEtConstituentsFrac",     m_LowEtConstituentsFrac      );
+    setBranch<float>(tree,"GhostMuonSegmentCount",     m_GhostMuonSegmentCount   );
+    setBranch<float>(tree,"Width",                     m_Width          );
   }
 
   if ( m_infoSwitch.m_scales ) {
@@ -1867,17 +1876,25 @@ void JetContainer::FillJet( const xAOD::IParticle* particle, const xAOD::Vertex*
     static SG::AuxElement::ConstAccessor<float> leadClusSecondR ("LeadingClusterSecondR");
     safeFill<float, float, xAOD::Jet>(jet, leadClusSecondR, m_LeadingClusterSecondR, -999);
 
-    static SG::AuxElement::ConstAccessor<char> clean_passLooseBad ("clean_passLooseBad");
-    safeFill<char, int, xAOD::Jet>(jet, clean_passLooseBad, m_clean_passLooseBad, -999);
+    // static SG::AuxElement::ConstAccessor<char> clean_passLooseBad ("clean_passLooseBad");
+    // safeFill<char, int, xAOD::Jet>(jet, clean_passLooseBad, m_clean_passLooseBad, -999);
+    static SG::AuxElement::ConstAccessor<int> clean_passLooseBad ("clean_passLooseBad");
+    safeFill<int, int, xAOD::Jet>(jet, clean_passLooseBad, m_clean_passLooseBad, -999);
 
-    static SG::AuxElement::ConstAccessor<char> clean_passLooseBadUgly ("clean_passLooseBadUgly");
-    safeFill<char, int, xAOD::Jet>(jet, clean_passLooseBadUgly, m_clean_passLooseBadUgly, -999);
+    // static SG::AuxElement::ConstAccessor<char> clean_passLooseBadUgly ("clean_passLooseBadUgly");
+    // safeFill<char, int, xAOD::Jet>(jet, clean_passLooseBadUgly, m_clean_passLooseBadUgly, -999);
+    static SG::AuxElement::ConstAccessor<int> clean_passLooseBadUgly ("clean_passLooseBadUgly");
+    safeFill<int, int, xAOD::Jet>(jet, clean_passLooseBadUgly, m_clean_passLooseBadUgly, -999);
 
-    static SG::AuxElement::ConstAccessor<char> clean_passTightBad ("clean_passTightBad");
-    safeFill<char, int, xAOD::Jet>(jet, clean_passTightBad, m_clean_passTightBad, -999);
+    // static SG::AuxElement::ConstAccessor<char> clean_passTightBad ("clean_passTightBad");
+    // safeFill<char, int, xAOD::Jet>(jet, clean_passTightBad, m_clean_passTightBad, -999);
+    static SG::AuxElement::ConstAccessor<int> clean_passTightBad ("clean_passTightBad");
+    safeFill<int, int, xAOD::Jet>(jet, clean_passTightBad, m_clean_passTightBad, -999);
 
-    static SG::AuxElement::ConstAccessor<char> clean_passTightBadUgly ("clean_passTightBadUgly");
-    safeFill<char, int, xAOD::Jet>(jet, clean_passTightBadUgly, m_clean_passTightBadUgly, -999);
+    // static SG::AuxElement::ConstAccessor<char> clean_passTightBadUgly ("clean_passTightBadUgly");
+    // safeFill<char, int, xAOD::Jet>(jet, clean_passTightBadUgly, m_clean_passTightBadUgly, -999);
+    static SG::AuxElement::ConstAccessor<int> clean_passTightBadUgly ("clean_passTightBadUgly");
+    safeFill<int, int, xAOD::Jet>(jet, clean_passTightBadUgly, m_clean_passTightBadUgly, -999);
 
   } // clean
 

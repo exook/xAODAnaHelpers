@@ -995,7 +995,7 @@ void HelpTreeBase::ClearPhotons() {
  *
  ********************/
 
-void HelpTreeBase::AddJets(const std::string detailStr, const std::string jetName)
+void HelpTreeBase::AddJets(const std::string detailStr, const std::string jetName, bool isSecondary)
 {
 
   if(m_debug) Info("AddJets()", "Adding jet %s with variables: %s", jetName.c_str(), detailStr.c_str());
@@ -1004,14 +1004,14 @@ void HelpTreeBase::AddJets(const std::string detailStr, const std::string jetNam
 
   xAH::JetContainer* thisJet = m_jets[jetName];
   thisJet->setBranches(m_tree);
-  this->AddJetsUser(detailStr, jetName);
+  this->AddJetsUser(detailStr, jetName, isSecondary);
 
 }
 
 
-void HelpTreeBase::FillJets( const xAOD::JetContainer* jets, int pvLocation, const std::string jetName ) {
+void HelpTreeBase::FillJets( const xAOD::JetContainer* jets, int pvLocation, const std::string jetName, bool isSecondary ) {
 
-  this->ClearJets(jetName);
+  this->ClearJets(jetName, isSecondary);
 
   const xAOD::VertexContainer* vertices(nullptr);
   const xAOD::Vertex *pv = 0;
@@ -1037,14 +1037,14 @@ void HelpTreeBase::FillJets( const xAOD::JetContainer* jets, int pvLocation, con
   }
 
   for( auto jet_itr : *jets ) {
-    // cwk debug start
-    std::cout<<"at filling HTB " << jetName;
-    if( jet_itr->isAvailable< float >( "constitScaleEta" ) )
-      std::cout << ": " << jet_itr->auxdata< float >("constitScaleEta") << std::endl;
-    else
-      std::cout << ": not available" << std::endl;
-    // cwk debug end
-    this->FillJet(jet_itr, pv, pvLocation, jetName);
+    if ( false ) {    // cwk debug start - no m_debug seems to get propagated
+      Info("HelpTreeBase::FillJets()", "Filling jet with name %s and constitScaleEta: ", jetName.c_str());
+      if( jet_itr->isAvailable< float >( "constitScaleEta" ) )
+	std::cout << "  " << jet_itr->auxdata< float >("constitScaleEta") << std::endl;
+      else
+	std::cout << "  not available" << std::endl;
+    } // cwk debug end
+    this->FillJet(jet_itr, pv, pvLocation, jetName, isSecondary);
   }
 
 
@@ -1052,23 +1052,23 @@ void HelpTreeBase::FillJets( const xAOD::JetContainer* jets, int pvLocation, con
 
 
 
-void HelpTreeBase::FillJet( const xAOD::Jet* jet_itr, const xAOD::Vertex* pv, int pvLocation, const std::string jetName ) {
+void HelpTreeBase::FillJet( const xAOD::Jet* jet_itr, const xAOD::Vertex* pv, int pvLocation, const std::string jetName, bool isSecondary ) {
 
   xAH::JetContainer* thisJet = m_jets[jetName];
 
   thisJet->FillJet(jet_itr, pv, pvLocation);
 
-  this->FillJetsUser(jet_itr, jetName);
+  this->FillJetsUser(jet_itr, jetName, isSecondary);
 
   return;
 }
 
-void HelpTreeBase::ClearJets(const std::string jetName) {
+void HelpTreeBase::ClearJets(const std::string jetName, bool isSecondary) {
 
   xAH::JetContainer* thisJet = m_jets[jetName];
   thisJet->clear();
 
-  this->ClearJetsUser(jetName);
+  this->ClearJetsUser(jetName, isSecondary);
 
 }
 

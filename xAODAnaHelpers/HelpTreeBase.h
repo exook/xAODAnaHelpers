@@ -63,7 +63,7 @@ public:
   void AddMuons       (const std::string detailStr = "", const std::string muonName = "muon");
   void AddElectrons   (const std::string detailStr = "");
   void AddPhotons     (const std::string detailStr = "");
-  void AddJets        (const std::string detailStr = "", const std::string jetName = "jet");
+  void AddJets        (const std::string detailStr = "", const std::string jetName = "jet", bool isSecondary = false);
   void AddTruthParts  (const std::string truthName,      const std::string detailStr = "");
 
   /**
@@ -122,8 +122,8 @@ public:
   void FillElectrons( const xAOD::ElectronContainer* electrons, const xAOD::Vertex* primaryVertex );
   void FillPhotons( const xAOD::PhotonContainer* photons );
 
-  void FillJets( const xAOD::JetContainer* jets, int pvLocation = -1, const std::string jetName = "jet" );
-  void FillJet( const xAOD::Jet* jet_itr, const xAOD::Vertex* pv, int pvLocation, const std::string jetName = "jet" );
+  void FillJets( const xAOD::JetContainer* jets, int pvLocation = -1, const std::string jetName = "jet", bool isSecondary = false );
+  void FillJet( const xAOD::Jet* jet_itr, const xAOD::Vertex* pv, int pvLocation, const std::string jetName = "jet", bool isSecondary = false  );
 
   void FillTruth( const std::string truthName, const xAOD::TruthParticleContainer* truth);
   void FillTruth( const xAOD::TruthParticle* truthPart, const std::string truthName );
@@ -150,7 +150,7 @@ public:
   void ClearMuons(const std::string jetName = "muon");
   void ClearElectrons();
   void ClearPhotons();
-  void ClearJets(const std::string jetName = "jet");
+  void ClearJets(const std::string jetName = "jet", bool isSecondary = false);
   void ClearTruth(const std::string truthName);
   void ClearFatJets(const std::string& fatjetName, const std::string& suffix);
   void ClearTruthFatJets();
@@ -183,7 +183,7 @@ public:
     if(m_debug) Info("AddPhotonsUser","Empty function called from HelpTreeBase %s",detailStr.c_str());
     return;
   };
-  virtual void AddJetsUser(const std::string detailStr = "", const std::string jetName = "jet")       {
+  virtual void AddJetsUser(const std::string detailStr = "", const std::string jetName = "jet", bool isSecondary = false)       {
     if(m_debug) Info("AddJetsUser","Empty function called from HelpTreeBase %s %s",detailStr.c_str(), jetName.c_str());
     return;
   };
@@ -221,7 +221,7 @@ public:
   virtual void ClearElectronsUser() { return; };
   virtual void ClearPhotonsUser() { return; };
   virtual void ClearTruthUser(const std::string& /*truthName*/) 	    { return; };
-  virtual void ClearJetsUser (const std::string /*jetName = "jet"*/ ) 	    { return; };
+  virtual void ClearJetsUser (const std::string /*jetName = "jet"*/, bool ) { return; };
   virtual void ClearFatJetsUser(const std::string& /*fatjetName = "fatjet"*/, const std::string& /*suffix = ""*/)   { return; };
   virtual void ClearTruthFatJetsUser()   { return; };
   virtual void ClearTausUser() 	    { return; };
@@ -231,7 +231,7 @@ public:
   virtual void FillMuonsUser( const xAOD::Muon*, const std::string /*muonName = "muon"*/  )             { return; };
   virtual void FillElectronsUser( const xAOD::Electron*  )     { return; };
   virtual void FillPhotonsUser( const xAOD::Photon*  )     { return; };
-  virtual void FillJetsUser( const xAOD::Jet*, const std::string /*jetName = "jet"*/  )               { return; };
+  virtual void FillJetsUser( const xAOD::Jet*, const std::string /*jetName = "jet"*/, bool )               { return; };
   virtual void FillTruthUser( const std::string& /*truthName*/, const xAOD::TruthParticle*  )               { return; };
   /**
    *  @brief  Called once per call to `FillFatJets()`.Ooverride this if you want to any additional

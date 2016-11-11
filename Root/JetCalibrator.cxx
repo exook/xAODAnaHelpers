@@ -460,8 +460,8 @@ EL::StatusCode JetCalibrator :: execute ()
 
       bool isBjet = false; // decide whether or not the jet is a b-jet (truth-labelling + kinematic selections)
       if (this_TruthLabel == 5) isBjet = true;
-      // static SG::AuxElement::Decorator<char> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
-      static SG::AuxElement::Decorator<int> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
+      static SG::AuxElement::Decorator<char> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
+      // static SG::AuxElement::Decorator<int> accIsBjet("IsBjet"); // char due to limitations of ROOT I/O, still treat it as a bool
       accIsBjet(*jet_itr) = isBjet;
     }
 
@@ -570,7 +570,7 @@ EL::StatusCode JetCalibrator :: execute ()
         }
       } //end cleaning decision
     }
-
+    if(m_debug) std::cout<<"I expect "<< inJets->size()+1 <<" errors"<<std::endl; // CWK edit, location of "ERROR xAOD::ByteStreamAuxContainer_v1::getData Unknown variable type (11ElementLinkI10DataVectorIN4xAOD9IParticleEN16DataModel_detail6NoBaseEEE) requested"
     if ( !xAOD::setOriginalObjectLink(*inJets, *(uncertCalibJetsSC.first)) ) {
       Error("execute()  ", "Failed to set original object links -- MET rebuilding cannot proceed.");
     }

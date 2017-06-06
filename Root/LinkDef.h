@@ -6,6 +6,7 @@
 #include <xAODAnaHelpers/ElectronSelector.h>
 #include <xAODAnaHelpers/PhotonSelector.h>
 #include <xAODAnaHelpers/TauSelector.h>
+#include <xAODAnaHelpers/FatJetTrimmer.h>
 #include <xAODAnaHelpers/JetSelector.h>
 #include <xAODAnaHelpers/DebugTool.h>
 #include <xAODAnaHelpers/TruthSelector.h>
@@ -64,6 +65,7 @@
 #pragma link C++ class ElectronSelector+;
 #pragma link C++ class PhotonSelector+;
 #pragma link C++ class TauSelector+;
+#pragma link C++ class FatJetTrimmer+;
 #pragma link C++ class JetSelector+;
 #pragma link C++ class DebugTool+;
 #pragma link C++ class TruthSelector+;

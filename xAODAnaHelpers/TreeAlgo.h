@@ -61,6 +61,9 @@ public:
   /// @brief unit conversion from MeV, default is GeV
   float m_units = 1e3;
 
+  // don't attempt to get PV (should automate this, but in 2017 data (express, physics_Main and DataScouting) there is no PV - DS fails and others spit out a per-event warning)
+  bool m_getPV = true;
+
 protected:
   std::vector<std::string> m_jetDetails; //!
   std::vector<std::string> m_trigJetDetails; //!

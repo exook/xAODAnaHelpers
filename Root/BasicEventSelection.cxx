@@ -208,20 +208,25 @@ EL::StatusCode BasicEventSelection :: fileExecute ()
 
 	  } // is derivation
       }
-
-      m_MD_initialNevents     = allEventsCBK->nAcceptedEvents();
-      m_MD_initialSumW	      = allEventsCBK->sumOfEventWeights();
-      m_MD_initialSumWSquared = allEventsCBK->sumOfEventWeightsSquared();
-
+      
+      if(allEventsCBK != nullptr) {
+        m_MD_initialNevents     = allEventsCBK->nAcceptedEvents();
+        m_MD_initialSumW        = allEventsCBK->sumOfEventWeights();
+        m_MD_initialSumWSquared = allEventsCBK->sumOfEventWeightsSquared();
+      }
+      else {
+        ANA_MSG_WARNING("no allEventsCBK found! i.e. nothing satisfying cbk->cycle() > maxCycle && cbk->name() == \"AllExecutedEvents\" && cbk->inputStream() == \"StreamAOD\"");
+      }
+      
       if ( m_isDerivation && !DxAODEventsCBK ) {
         ANA_MSG_ERROR( "No CutBookkeeper corresponds to the selected Derivation Framework algorithm name. Check it with your DF experts! Aborting.");
         return EL::StatusCode::FAILURE;
       }
-
+      
       m_MD_finalNevents	      = ( m_isDerivation ) ? DxAODEventsCBK->nAcceptedEvents() : m_MD_initialNevents;
       m_MD_finalSumW	      = ( m_isDerivation ) ? DxAODEventsCBK->sumOfEventWeights() : m_MD_initialSumW;
       m_MD_finalSumWSquared   = ( m_isDerivation ) ? DxAODEventsCBK->sumOfEventWeightsSquared() : m_MD_initialSumWSquared;
-
+      
       // Write metadata event bookkeepers to histogram
       //
       ANA_MSG_INFO( "Meta data from this file:");

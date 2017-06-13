@@ -250,9 +250,15 @@ EL::StatusCode TreeAlgo :: execute ()
   const xAOD::EventInfo* eventInfo(nullptr);
   ANA_CHECK( HelperFunctions::retrieve(eventInfo, m_eventInfoContainerName, m_event, m_store, msg()) );
   const xAOD::VertexContainer* vertices(nullptr);
-  ANA_CHECK( HelperFunctions::retrieve(vertices, "PrimaryVertices", m_event, m_store, msg()) );
-  // get the primaryVertex
-  const xAOD::Vertex* primaryVertex = HelperFunctions::getPrimaryVertex( vertices , msg());
+  const xAOD::Vertex* primaryVertex(0);
+  int primaryVertexLocation(-1);
+  if(m_getPV) {
+    ANA_CHECK( HelperFunctions::retrieve(vertices, "PrimaryVertices", m_event, m_store, msg()) );
+    // get the primaryVertex
+    primaryVertex = HelperFunctions::getPrimaryVertex( vertices , msg());
+    primaryVertexLocation = HelperFunctions::getPrimaryVertexLocation(vertices, msg());
+  }
+  
 
   for(const auto& systName: event_systNames){
     auto& helpTree = m_trees[systName];
@@ -305,7 +311,7 @@ EL::StatusCode TreeAlgo :: execute ()
         const xAOD::JetContainer* inJets(nullptr);
         if(ll==0){ ANA_CHECK( HelperFunctions::retrieve(inJets, m_jetContainers.at(ll)+jetSuffix, m_event, m_store, msg()) ); }
         else{     ANA_CHECK( HelperFunctions::retrieve(inJets, m_jetContainers.at(ll), m_event, m_store, msg()) ); }
-        helpTree->FillJets( inJets, HelperFunctions::getPrimaryVertexLocation(vertices, msg()), m_jetBranches.at(ll) );
+        helpTree->FillJets( inJets, primaryVertexLocation, m_jetBranches.at(ll) );
       }
 
     }
@@ -317,18 +323,18 @@ EL::StatusCode TreeAlgo :: execute ()
     if ( !m_trigJetContainerName.empty() ) {
       // const xAOD::JetContainer* inTrigJets(nullptr);
       // ANA_CHECK( HelperFunctions::retrieve(inTrigJets, m_trigJetContainerName, m_event, m_store, msg()) );
-      // helpTree->FillJets( inTrigJets, HelperFunctions::getPrimaryVertexLocation(vertices, msg()), "trigJet" );
+      // helpTree->FillJets( inTrigJets, primaryVertexLocation, "trigJet" );
       for(unsigned int ll=0;ll<m_trigJetContainers.size();++ll){
         const xAOD::JetContainer* inTrigJets(nullptr);
         ANA_CHECK( HelperFunctions::retrieve(inTrigJets, m_trigJetContainers.at(ll), m_event, m_store, msg()) );
-        helpTree->FillJets( inTrigJets, HelperFunctions::getPrimaryVertexLocation(vertices, msg()), m_trigJetBranches.at(ll) );
+        helpTree->FillJets( inTrigJets, primaryVertexLocation, m_trigJetBranches.at(ll) );
       }
     }
     if ( !m_truthJetContainerName.empty() ) {
       for(unsigned int ll=0;ll<m_truthJetContainers.size();++ll){
         const xAOD::JetContainer* inTruthJets(nullptr);
         ANA_CHECK( HelperFunctions::retrieve(inTruthJets, m_truthJetContainers.at(ll), m_event, m_store, msg()) );
-        helpTree->FillJets( inTruthJets, HelperFunctions::getPrimaryVertexLocation(vertices, msg()), m_truthJetBranches.at(ll) );
+        helpTree->FillJets( inTruthJets, primaryVertexLocation, m_truthJetBranches.at(ll) );
       }
     }
     if ( !m_fatJetContainerName.empty() ) {

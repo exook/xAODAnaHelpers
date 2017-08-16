@@ -318,7 +318,7 @@ EL::StatusCode TreeAlgo :: execute ()
     if ( !m_l1JetContainerName.empty() ){
       const xAOD::JetRoIContainer* inL1Jets(nullptr);
       ANA_CHECK( HelperFunctions::retrieve(inL1Jets, m_l1JetContainerName, m_event, m_store, msg()) );
-      helpTree->FillL1Jets( inL1Jets);
+      helpTree->FillL1Jets( inL1Jets, m_sortL1Jets );
     }
     if ( !m_trigJetContainerName.empty() ) {
       // const xAOD::JetContainer* inTrigJets(nullptr);

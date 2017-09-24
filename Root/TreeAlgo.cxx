@@ -70,6 +70,18 @@ EL::StatusCode TreeAlgo :: initialize ()
     ANA_MSG_ERROR( "The number of trig jet containers must be equal to the number of trig jet name branches. Exiting");
     return EL::StatusCode::FAILURE;
   }
+  std::istringstream ss_fatjet_containers(m_fatJetContainerName);
+  while ( std::getline(ss_fatjet_containers, token, ' ') ){
+    m_fatJetContainers.push_back(token);
+  }
+  std::istringstream ss_fatjet_names(m_fatJetBranchName);
+  while ( std::getline(ss_fatjet_names, token, ' ') ){
+    m_fatJetBranches.push_back(token);
+  }
+  if( !m_fatJetContainerName.empty() && m_fatJetContainers.size()!=m_fatJetBranches.size()){
+    ANA_MSG_ERROR( "The number of fat jet containers must be equal to the number of fat jet name branches. Exiting");
+    return EL::StatusCode::FAILURE;
+  }
   std::istringstream ss_truth_containers(m_truthJetContainerName);
   while ( std::getline(ss_truth_containers, token, ' ') ){
     m_truthJetContainers.push_back(token);
@@ -100,8 +112,14 @@ EL::StatusCode TreeAlgo :: initialize ()
     ANA_MSG_ERROR( "The size of m_trigJetContainers should be equal to the size of m_trigJetDetailStr. Exiting");
     return EL::StatusCode::FAILURE;
   }
-
-
+  std::istringstream ss_fatjet_details(m_fatJetDetailStr);
+  while ( std::getline(ss_fatjet_details, token, '|') ){
+    m_fatJetDetails.push_back(token);
+  }
+  if( m_fatJetDetails.size()!=1  && m_fatJetContainers.size()!=m_fatJetDetails.size()){
+    ANA_MSG_ERROR( "The size of m_fatJetContainers should be equal to the size of m_fatJetDetailStr. Exiting");
+    return EL::StatusCode::FAILURE;
+  }
 
   return EL::StatusCode::SUCCESS;
 }
@@ -216,10 +234,8 @@ EL::StatusCode TreeAlgo :: execute ()
       }
     }
     if (!m_l1JetContainerName.empty() )         { helpTree->AddL1Jets();                                           }
-    // if (!m_trigJetContainerName.empty() )       { helpTree->AddJets(m_trigJetDetailStr, "trigJet");                }
     if (!m_trigJetContainerName.empty() )      {
       for(unsigned int ll=0; ll<m_trigJetContainers.size();++ll){
-        // helpTree->AddJets       (m_trigJetDetailStr, m_trigJetBranches.at(ll).c_str());
         if(m_trigJetDetails.size()==1) helpTree->AddJets       (m_trigJetDetailStr, m_trigJetBranches.at(ll).c_str());
 	else{ helpTree->AddJets       (m_trigJetDetails.at(ll), m_trigJetBranches.at(ll).c_str()); }
       }
@@ -229,13 +245,18 @@ EL::StatusCode TreeAlgo :: execute ()
         helpTree->AddJets       (m_truthJetDetailStr, m_truthJetBranches.at(ll).c_str());
       }
     }
-    if ( !m_fatJetContainerName.empty() ) {
-	    std::string token;
-  	  std::istringstream ss(m_fatJetContainerName);
-    	while ( std::getline(ss, token, ' ') ){
-      	  helpTree->AddFatJets(m_fatJetDetailStr, token);
-			}
-		}
+    if (!m_fatJetContainerName.empty() )      {
+      for(unsigned int ll=0; ll<m_fatJetContainers.size();++ll){
+        helpTree->AddFatJets       (m_fatJetDetails.at(ll), m_fatJetBranches.at(ll).c_str());
+      }
+    }
+    // if ( !m_fatJetContainerName.empty() ) {
+      // std::string token;
+      // std::istringstream ss(m_fatJetContainerName);
+      // while ( std::getline(ss, token, ' ') ){
+        // helpTree->AddFatJets(m_fatJetDetailStr, token);
+      // }
+    // }
     if (!m_truthFatJetContainerName.empty() )   { helpTree->AddTruthFatJets(m_truthFatJetDetailStr);               }
     if (!m_tauContainerName.empty() )           { helpTree->AddTaus(m_tauDetailStr);                               }
     if (!m_METContainerName.empty() )           { helpTree->AddMET(m_METDetailStr);                                }

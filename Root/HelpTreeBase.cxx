@@ -562,7 +562,7 @@ void HelpTreeBase::FillL1Jets( const xAOD::JetRoIContainer* jets, bool sortL1Jet
     }
     std::sort(L1jet_Et_sorted.begin(), L1jet_Et_sorted.end(), std::greater<float>());
 
-    for( int i = 0; i < L1jet_Et.size(); i++) {
+    for( unsigned int i = 0; i < L1jet_Et.size(); i++) {
       int index = std::find (L1jet_Et.begin(), L1jet_Et.end(), L1jet_Et_sorted.at(i)) - L1jet_Et.begin();
       m_l1Jet_et8x8.push_back ( jets->at(index)->et8x8() / m_units );
       m_l1Jet_eta.push_back( jets->at(index)->eta() );
@@ -785,6 +785,7 @@ void HelpTreeBase::AddFatJets(const std::string detailStr, const std::string fat
   if(m_debug) Info("AddFatJets()", "Adding fat jet variables: %s", detailStr.c_str());
 
   const std::string collectionName = FatJetCollectionName(fatjetName, suffix);
+  if(m_debug) Info("AddFatJets()", "Adding fat jets with collection name %s", collectionName.c_str());
   m_fatjets[collectionName] = new xAH::FatJetContainer(fatjetName, detailStr, suffix, m_units, m_isMC);
 
   xAH::FatJetContainer* thisFatJet = m_fatjets[collectionName];
@@ -861,7 +862,7 @@ void HelpTreeBase::ClearFatJets(const std::string fatjetName, const std::string 
   xAH::FatJetContainer* thisFatJet = m_fatjets[collectionName];
   thisFatJet->clear();
 
-  this->ClearFatJetsUser(fatjetName, suffix);
+  this->ClearFatJetsUser(fatjetName, suffix); // now this dies
 }
 
 void HelpTreeBase::ClearTruthFatJets(const std::string truthFatJetName) {

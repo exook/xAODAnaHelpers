@@ -405,11 +405,11 @@ EL::StatusCode JetCalibrator :: execute ()
       static SG::AuxElement::ConstAccessor<int> PartonTruthLabelID ("PartonTruthLabelID");
 
       if ( TruthLabelID.isAvailable( *jet_itr) ) {
-  this_TruthLabel = TruthLabelID( *jet_itr );
-  if (this_TruthLabel == 21 || this_TruthLabel<4) this_TruthLabel = 0;
+        this_TruthLabel = TruthLabelID( *jet_itr );
+        if (this_TruthLabel == 21 || this_TruthLabel<4) this_TruthLabel = 0;
       } else if(PartonTruthLabelID.isAvailable( *jet_itr) ) {
-  this_TruthLabel = PartonTruthLabelID( *jet_itr );
-  if (this_TruthLabel == 21 || this_TruthLabel<4) this_TruthLabel = 0;
+        this_TruthLabel = PartonTruthLabelID( *jet_itr );
+        if (this_TruthLabel == 21 || this_TruthLabel<4) this_TruthLabel = 0;
       }
 
       bool isBjet = false; // decide whether or not the jet is a b-jet (truth-labelling + kinematic selections)
@@ -418,13 +418,15 @@ EL::StatusCode JetCalibrator :: execute ()
       accIsBjet(*jet_itr) = isBjet;
     }
 
-
+    ANA_MSG_VERBOSE("  about to call JetCalibrationTool for object "+std::to_string(m_numObject));
 
     if ( m_JetCalibrationTool_handle->applyCorrection( *jet_itr ) == CP::CorrectionCode::Error ) {
       ANA_MSG_ERROR( "JetCalibration tool reported a CP::CorrectionCode::Error");
       ANA_MSG_ERROR( m_name );
       return StatusCode::FAILURE;
     }
+    
+    ANA_MSG_VERBOSE("  calibration done");
 
     if(m_doJetTileCorr && !m_isMC){
       if( m_JetTileCorrectionTool_handle->applyCorrection(*jet_itr) == CP::CorrectionCode::Error ){
@@ -433,6 +435,8 @@ EL::StatusCode JetCalibrator :: execute ()
     }
 
   }//for jets
+
+  ANA_MSG_VERBOSE("Nominal jet calibration done");
 
   // loop over available systematics - remember syst == "Nominal" --> baseline
   std::vector< std::string >* vecOutContainerNames = new std::vector< std::string >;
@@ -504,6 +508,7 @@ EL::StatusCode JetCalibrator :: execute ()
     }// if m_runSysts
 
     if(m_doCleaning){
+      ANA_MSG_VERBOSE("Doing jet cleaning");
       // decorate with cleaning decision
       for ( auto jet_itr : *(uncertCalibJetsSC.first) ) {
 
@@ -518,9 +523,9 @@ EL::StatusCode JetCalibrator :: execute ()
             jetToClean = *el_parent;
           }
         }
-
+        ANA_MSG_VERBOSE("  Applying for jet");
         isCleanDecor(*jet_itr) = m_JetCleaningTool_handle->keep(*jetToClean);
-
+        ANA_MSG_VERBOSE("  done!");
         if( m_saveAllCleanDecisions ){
           for(unsigned int i=0; i < m_AllJetCleaningTool_handles.size() ; ++i){
             jet_itr->auxdata< char >(("clean_pass"+m_decisionNames.at(i)).c_str()) = m_AllJetCleaningTool_handles.at(i)->keep(*jetToClean);
@@ -559,6 +564,7 @@ EL::StatusCode JetCalibrator :: execute ()
     // add ConstDataVector to TStore
     ANA_CHECK( m_store->record( uncertCalibJetsCDV, outContainerName));
   }
+  ANA_MSG_VERBOSE("Have done iteration over systematics");
   // add vector of systematic names to TStore
   ANA_CHECK( m_store->record( vecOutContainerNames, m_outputAlgo));
 

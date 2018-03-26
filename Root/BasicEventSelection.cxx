@@ -23,6 +23,8 @@
 #include "TTree.h"
 #include "TTreeFormula.h"
 #include "TSystem.h"
+#include "xAODCore/tools/IOStats.h"
+#include "xAODCore/tools/ReadStats.h"
 
 
 // this is needed to distribute the algorithm to the workers
@@ -30,11 +32,11 @@ ClassImp(BasicEventSelection)
 
 BasicEventSelection :: BasicEventSelection (std::string className) :
     Algorithm(className),
-    m_PU_default_channel(0),
     m_grl(nullptr),
     m_pileup_tool_handle("CP::PileupReweightingTool/Pileup"),
     m_trigConfTool(nullptr),
     m_trigDecTool(nullptr),
+    m_reweightSherpa22_tool_handle("PMGTools::PMGSherpa22VJetsWeightTool/ReweightSherpa22"),
     m_histEventCount(nullptr),
     m_cutflowHist(nullptr),
     m_cutflowHistW(nullptr),
@@ -62,7 +64,7 @@ BasicEventSelection :: BasicEventSelection (std::string className) :
   m_debug = false;
   m_truthLevelOnly = false;
 
-  // derivation name
+  // override derivation name
   m_derivationName = "";
 
   // Metadata
@@ -79,6 +81,7 @@ BasicEventSelection :: BasicEventSelection (std::string className) :
 
   // GRL
   m_applyGRLCut = false;
+  // list of comma-separated grls
   m_GRLxml = "$ROOTCOREBIN/data/xAODAnaHelpers/data15_13TeV.periodAllYear_HEAD_DQDefects-00-01-02_PHYS_StandardGRL_Atlas_Ready.xml";
   //https://twiki.cern.ch/twiki/bin/viewauth/AtlasProtected/GoodRunListsForAnalysis
   m_GRLExcludeList = "";
@@ -86,11 +89,13 @@ BasicEventSelection :: BasicEventSelection (std::string className) :
   // Clean Powheg huge weight
   m_cleanPowheg = false;
 
+  // Weight for Sherpa 2.2 samples
+  m_reweightSherpa22 = false;
+
   // Pileup Reweighting
   m_doPUreweighting    = false;
   m_lumiCalcFileNames  = "";
   m_PRWFileNames       = "";
-  m_PU_default_channel = 0;
 
   // Data weight for unprescaling data
   m_savePrescaleDataWeight  = false;
@@ -104,6 +109,9 @@ BasicEventSelection :: BasicEventSelection (std::string className) :
   // Event Cleaning
   m_applyEventCleaningCut = false;
   m_applyCoreFlagsCut     = false;
+
+  // Print Branch List 
+  m_printBranchList       = false;
 
   // Trigger
   m_extraTriggerSelection = "";
@@ -235,7 +243,7 @@ EL::StatusCode BasicEventSelection :: fileExecute ()
 		  break;
 	      }
 	  }
-	  if ( !allFromUnknownStream ) { Warning("fileExecute()","Found incomplete Bookkeepers from stream: %s ! Check input file for potential corruption...", stream.c_str() ); }
+	  if ( !allFromUnknownStream ) { Warning("fileExecute()","Found incomplete CBK from stream: %s. This is not necessarily a sign of file corruption (incomplete CBK appear when 'maxevents' is set in the AOD jo, for instance), but you may still want to check input file for potential corruption...", stream.c_str() ); }
 
       }
 
@@ -257,7 +265,13 @@ EL::StatusCode BasicEventSelection :: fileExecute ()
       const xAOD::CutBookkeeper* allEventsCBK(nullptr);
       const xAOD::CutBookkeeper* DxAODEventsCBK(nullptr);
 
-      if ( m_isDerivation ) { Info("fileExecute()","Looking at DAOD made by Derivation Algorithm: %s", m_derivationName.c_str()); }
+      if ( m_isDerivation ) { 
+	if(m_derivationName != ""){
+	  Info("fileExecute()","Override auto config to look at DAOD made by Derivation Algorithm: %s", m_derivationName.c_str()); 
+	}else{
+	  Info("fileExecute()","Will autoconfig to look at DAOD made by Derivation Algorithm."); 
+	}
+      }
 
       int maxCycle(-1);
       for ( const auto& cbk: *completeCBC ) {
@@ -267,17 +281,26 @@ EL::StatusCode BasicEventSelection :: fileExecute ()
 	      maxCycle = cbk->cycle();
 	  }
 	  if ( m_isDerivation ) {
+
+	    if(m_derivationName != ""){
+
 	      if ( cbk->name() == m_derivationName ) {
-		  DxAODEventsCBK = cbk;
-	      }
-	  }
+		DxAODEventsCBK = cbk;
+	      } 
+	      
+	    } else if( cbk->name().find("Kernel") != std::string::npos ){
+	      Info("fileExecute()","Auto config found DAOD made by Derivation Algorithm: %s", cbk->name().c_str()); 
+	      DxAODEventsCBK = cbk;
+	    }
+
+	  } // is derivation
       }
 
       m_MD_initialNevents     = allEventsCBK->nAcceptedEvents();
       m_MD_initialSumW	      = allEventsCBK->sumOfEventWeights();
       m_MD_initialSumWSquared = allEventsCBK->sumOfEventWeightsSquared();
 
-      if ( !DxAODEventsCBK ) {
+      if ( m_isDerivation && !DxAODEventsCBK ) {
         Error("fileExecute()", "No CutBookkeeper corresponds to the selected Derivation Framework algorithm name. Check it with your DF experts! Aborting.");
         return EL::StatusCode::FAILURE;
       }
@@ -365,6 +388,42 @@ EL::StatusCode BasicEventSelection :: initialize ()
     m_cleanPowheg = true;
     Info("initialize()", "This is J5 Powheg - cleaning that nasty huge weight event");
   }
+
+  //////// Initialize Tool for Sherpa 2.2 Reweighting ////////////
+  // https://twiki.cern.ch/twiki/bin/viewauth/AtlasProtected/CentralMC15ProductionList#Sherpa_v2_2_0_V_jets_NJet_reweig
+  m_reweightSherpa22 = false;
+  if( m_isMC && 
+      ( (eventInfo->mcChannelNumber() >= 363331 && eventInfo->mcChannelNumber() <= 363483 ) ||
+        (eventInfo->mcChannelNumber() >= 363102 && eventInfo->mcChannelNumber() <= 363122 ) ||
+        (eventInfo->mcChannelNumber() >= 363361 && eventInfo->mcChannelNumber() <= 363435 ) ) ){
+    Info("initialize()", "This is Sherpa 2.2 dataset and should be reweighted.  An extra weight will be saved to EventInfo called \"weight_Sherpa22\".");
+    m_reweightSherpa22 = true;
+
+    //Choose Jet Truth container, WZ has more information and is favored by the tool
+    std::string pmg_TruthJetContainer = "";
+    if( m_event->contains<xAOD::JetContainer>("AntiKt4TruthWZJets") ){
+      pmg_TruthJetContainer = "AntiKt4TruthWZJets";
+    } else if( m_event->contains<xAOD::JetContainer>("AntiKt4TruthJets") ){
+      pmg_TruthJetContainer = "AntiKt4TruthJets";
+    } else {
+      Warning("initialize()", "No Truth Jet Container found for Sherpa 22 reweighting, weight_Sherpa22 will not be set.");
+      m_reweightSherpa22 = false;
+    }
+
+    //Initialize Tool
+    if( m_reweightSherpa22 ){
+
+      if (!m_reweightSherpa22_tool_handle.isUserConfigured()) {
+
+        RETURN_CHECK("BasicEventSelection::initialize()", checkToolStore<PMGTools::PMGSherpa22VJetsWeightTool>("ReweightSherpa22"), "Failed to check whether tool already exists in asg::ToolStore" );
+        RETURN_CHECK( "initialize()", ASG_MAKE_ANA_TOOL(m_reweightSherpa22_tool_handle, PMGTools::PMGSherpa22VJetsWeightTool), "Could not make the tool");
+        RETURN_CHECK( "initialize()", m_reweightSherpa22_tool_handle.setProperty( "TruthJetContainer", pmg_TruthJetContainer ), "Failed to set TruthJetContainer" );
+        RETURN_CHECK( "initialize()", m_reweightSherpa22_tool_handle.retrieve(), "Failed to properly retrieve PMGTools::PMGSherpa22VJetsWeightTool");
+
+      }
+    }
+  }//if isMC and a Sherpa 2.2 sample
+
 
   Info("initialize()", "Setting up histograms");
 
@@ -464,7 +523,11 @@ EL::StatusCode BasicEventSelection :: initialize ()
     m_grl = new GoodRunsListSelectionTool("GoodRunsListSelectionTool");
     std::vector<std::string> vecStringGRL;
     m_GRLxml = gSystem->ExpandPathName( m_GRLxml.c_str() );
-    vecStringGRL.push_back(m_GRLxml);
+
+    std::string grl;
+    std::istringstream ss(m_GRLxml);
+    while ( std::getline(ss, grl, ',') ) vecStringGRL.push_back(grl);
+
     RETURN_CHECK("BasicEventSelection::initialize()", m_grl->setProperty( "GoodRunsListVec", vecStringGRL), "");
     RETURN_CHECK("BasicEventSelection::initialize()", m_grl->setProperty("PassThrough", false), "");
     RETURN_CHECK("BasicEventSelection::initialize()", m_grl->initialize(), "");
@@ -515,21 +578,24 @@ EL::StatusCode BasicEventSelection :: initialize ()
       printf( "\t %s \n", lumiCalcFiles.at(i).c_str() );
     }
 
-    RETURN_CHECK("BasicEventSelection::initialize()", checkToolStore<CP::PileupReweightingTool>("Pileup"), "Failed to check whether tool already exists in asg::ToolStore" );
-    //RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.makeNew<CP::PileupReweightingTool>("CP::PileupReweightingTool/Pileup"), "Failed to create handle to CP::PileupReweightingTool");
-    RETURN_CHECK("initialize()", ASG_MAKE_ANA_TOOL(m_pileup_tool_handle, CP::PileupReweightingTool), "Could not make the tool");
+    //RETURN_CHECK("BasicEventSelection::initialize()", checkToolStore<CP::PileupReweightingTool>("Pileup"), "Failed to check whether tool already exists in asg::ToolStore" );
+    ////RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.makeNew<CP::PileupReweightingTool>("CP::PileupReweightingTool/Pileup"), "Failed to create handle to CP::PileupReweightingTool");
+    //RETURN_CHECK("initialize()", ASG_MAKE_ANA_TOOL(m_pileup_tool_handle, CP::PileupReweightingTool), "Could not make the tool");
+    //
+
+    //tmp jeff
+    ASG_SET_ANA_TOOL_TYPE(m_pileup_tool_handle, CP::PileupReweightingTool);
+    m_pileup_tool_handle.setName("Pileup");
+
+
     RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("ConfigFiles", PRWFiles), "");
     RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("LumiCalcFiles", lumiCalcFiles), "");
-    if ( m_PU_default_channel ) {
-      RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DefaultChannel", m_PU_default_channel), "");
-    }
-    RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DataScaleFactor", 1.0/1.16), "Failed to set pileup reweighting data scale factor");
+    RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DataScaleFactor", 1.0/1.09), "Failed to set pileup reweighting data scale factor");
     RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DataScaleFactorUP", 1.0), "Failed to set pileup reweighting data scale factor up");
-    RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DataScaleFactorDOWN", 1.0/1.23), "Failed to set pileup reweighting data scale factor down");
+    RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.setProperty("DataScaleFactorDOWN", 1.0/1.18), "Failed to set pileup reweighting data scale factor down");
     // RETURN_CHECK("BasicEventSelection::initialize()", m_pileup_tool_handle.initialize(), "Failed to properly initialize CP::PileupReweightingTool");
     RETURN_CHECK("BasicEventSelection::retrieve()", m_pileup_tool_handle.retrieve(), "Failed to properly retrieve CP::PileupReweightingTool");
-
-    //m_pileup_tool_handle->EnableDebugging(true);
+//    RETURN_CHECK("BasicEventSelection::retrieve()", asg::ToolStore::put(m_pileup_tool_handle.get()), "Failed to put");
 
   }
   
@@ -666,12 +732,12 @@ EL::StatusCode BasicEventSelection :: execute ()
 
       // kill the powheg event with a huge weight
       if( m_cleanPowheg ) {
-	if( eventInfo->eventNumber() == 1652845 ) {
-	  Info("execute()","Dropping huge weight event. Weight should be 352220000");
-	  Info("execute()","WEIGHT : %f ", mcEvtWeight);
-	  wk()->skipEvent();
-	  return EL::StatusCode::SUCCESS; // go to next event
-	}
+        if( eventInfo->eventNumber() == 1652845 ) {
+          Info("execute()","Dropping huge weight event. Weight should be 352220000");
+          Info("execute()","WEIGHT : %f ", mcEvtWeight);
+          wk()->skipEvent();
+          return EL::StatusCode::SUCCESS; // go to next event
+        }
       }
     }
     // Decorate event with the *total* MC event weight
@@ -708,6 +774,23 @@ EL::StatusCode BasicEventSelection :: execute ()
   }
 
 
+  //------------------------------------------------------------------------------------------
+  // Declare an 'eventInfo' decorator with the Sherpa 2.2 reweight to multijet truth
+  // https://twiki.cern.ch/twiki/bin/viewauth/AtlasProtected/CentralMC15ProductionList#Sherpa_v2_2_0_V_jets_NJet_reweig
+  //------------------------------------------------------------------------------------------
+  
+  if ( m_reweightSherpa22 ){
+    static SG::AuxElement::Decorator< float > weight_Sherpa22Decor("weight_Sherpa22");
+    // Check if weight needs to be added
+    if ( !weight_Sherpa22Decor.isAvailable(*eventInfo) ) {
+
+      float weight_Sherpa22 = -999.;
+      weight_Sherpa22 = m_reweightSherpa22_tool_handle->getWeight();
+      weight_Sherpa22Decor( *eventInfo ) = weight_Sherpa22;
+      if( m_debug)  Info("exectue()","Setting Sherpa 2.2 reweight to %f", weight_Sherpa22);
+
+    } // If not already decorated
+  } // if m_reweightSherpa22
 
 
   //------------------------------------------------------------------------------------------
@@ -972,6 +1055,11 @@ EL::StatusCode BasicEventSelection :: finalize ()
   if ( m_grl )          { delete m_grl; m_grl = nullptr; }
   if ( m_trigDecTool )  { delete m_trigDecTool;  m_trigDecTool = nullptr; }
   if ( m_trigConfTool ) { delete m_trigConfTool;  m_trigConfTool = nullptr; }
+
+  //after execution loop 
+  if(m_printBranchList){
+    xAOD::IOStats::instance().stats().printSmartSlimmingBranchList();
+  }
 
   return EL::StatusCode::SUCCESS;
 }

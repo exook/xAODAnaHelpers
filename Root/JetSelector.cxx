@@ -33,8 +33,6 @@
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSelector)
 
-std::vector<std::string> errorMessages; // ridiculous hack by CWK
-std::vector<int> errorMessagesCount; // ridiculous hack by CWK
 
 JetSelector :: JetSelector (std::string className) :
     Algorithm(className),
@@ -80,7 +78,8 @@ JetSelector :: JetSelector (std::string className) :
 
   // cuts
   m_cleanJets               = true;
-  m_cleanEvtLeadJets        = 0; // indepedent of previous switch
+  m_cleanEvtLeadJets        = -1; // indepedent of previous switch
+  m_cleanEvent              = false;
   m_pass_max                = -1;
   m_pass_min                = -1;
   m_pT_max                  = 1e8;
@@ -96,14 +95,15 @@ JetSelector :: JetSelector (std::string className) :
   m_truthLabel 	            = -1;
   m_useHadronConeExcl       = true;
 
-  m_doJVF 		    = false;
-  m_pt_max_JVF 	            = 50e3;
-  m_eta_max_JVF 	    = 2.4;
-  m_JVFCut 		    = 0.5;
-  m_doJVT 		    = false;
-  m_pt_max_JVT 	            = 50e3;
-  m_eta_max_JVT 	    = 2.4;
-  m_JVTCut 		    = -1.0;
+  m_doJVF                   = false;
+  m_pt_max_JVF              = 50e3;
+  m_eta_max_JVF             = 2.4;
+  m_JVFCut                  = 0.5;
+  m_doJVT                   = false;
+
+  m_pt_max_JVT              = 60e3;
+  m_eta_max_JVT             = 2.4;
+  m_JVTCut                  = -1.0;
   m_WorkingPointJVT         = "Medium";
 
   m_systValJVT 	            = 0.0;
@@ -111,7 +111,7 @@ JetSelector :: JetSelector (std::string className) :
   m_outputSystNamesJVT      = "JetJvtEfficiency_JVTSyst";
 
   // Btag quality
-  m_doBTagCut 		    = false;
+  m_doBTagCut               = false;
   m_corrFileName            = "$ROOTCOREBIN/data/xAODBTaggingEfficiency/cutprofiles_22072015.root";
   m_taggerName              = "MV2c20";
   m_operatingPt             = "FixedCutBEff_70";
@@ -232,12 +232,12 @@ EL::StatusCode JetSelector :: initialize ()
     m_jet_cutflowHist_1 = (TH1D*)file->Get("cutflow_jets_1");
 
     m_jet_cutflow_all             = m_jet_cutflowHist_1->GetXaxis()->FindBin("all");
-    m_jet_cutflow_cleaning_cut    = m_jet_cutflowHist_1->GetXaxis()->FindBin("cleaning_cut");
     m_jet_cutflow_ptmax_cut       = m_jet_cutflowHist_1->GetXaxis()->FindBin("ptmax_cut");
     m_jet_cutflow_ptmin_cut       = m_jet_cutflowHist_1->GetXaxis()->FindBin("ptmin_cut");
     m_jet_cutflow_eta_cut         = m_jet_cutflowHist_1->GetXaxis()->FindBin("eta_cut");
     m_jet_cutflow_jvt_cut         = m_jet_cutflowHist_1->GetXaxis()->FindBin("JVT_cut");
     m_jet_cutflow_btag_cut        = m_jet_cutflowHist_1->GetXaxis()->FindBin("BTag_cut");
+    m_jet_cutflow_cleaning_cut    = m_jet_cutflowHist_1->GetXaxis()->FindBin("cleaning_cut");
 
   }
 
@@ -323,16 +323,16 @@ EL::StatusCode JetSelector :: initialize ()
     // A few which are not configurable as of yet....
     // is there a reason to have this configurable here??...I think no (GF to self)
     //
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("MaxEta",m_b_eta_max),"Failed to set property:MaxEta");
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("MinPt",m_b_pt_min),"Failed to set property:MinPt");
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("FlvTagCutDefinitionsFileName", m_corrFileName),"Failed to set property:FlvTagCutDefinitionsFileName");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("MaxEta",m_b_eta_max),"Failed to set property:MaxEta");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("MinPt",m_b_pt_min),"Failed to set property:MinPt");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("FlvTagCutDefinitionsFileName", m_corrFileName),"Failed to set property:FlvTagCutDefinitionsFileName");
 
     // configurable parameters
     //
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("TaggerName",	      m_taggerName),"Failed to set property: TaggerName");
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("OperatingPoint",      m_operatingPt),"Failed to set property: OperatingPoint");
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->setProperty("JetAuthor",	      m_jetAuthor),"Failed to set property: JetAuthor");
-    RETURN_CHECK( "BJetSelection::initialize()", m_BJetSelectTool->initialize(), "Failed to properly initialize the BJetSelectionTool");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("TaggerName",	      m_taggerName),"Failed to set property: TaggerName");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("OperatingPoint",      m_operatingPt),"Failed to set property: OperatingPoint");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->setProperty("JetAuthor",	      m_jetAuthor),"Failed to set property: JetAuthor");
+    RETURN_CHECK( "JetSelector::initialize()", m_BJetSelectTool->initialize(), "Failed to properly initialize the BJetSelectionTool");
 
   }
 
@@ -340,10 +340,10 @@ EL::StatusCode JetSelector :: initialize ()
   //
   m_JVT_tool_name = "JetJvtEfficiency_effSF";
   std::string JVT_handle_name = "CP::JetJvtEfficiency/" + m_JVT_tool_name +"_"+m_name;
-  RETURN_CHECK("MuonEfficiencyCorrector::initialize()", checkToolStore<CP::JetJvtEfficiency>(m_JVT_tool_name), "" );
-  RETURN_CHECK("MuonEfficiencyCorrector::initialize()", m_JVT_tool_handle.makeNew<CP::JetJvtEfficiency>(JVT_handle_name), "Failed to create handle to CP::JetJvtEfficiency for JVT");
-  RETURN_CHECK("MuonEfficiencyCorrector::initialize()", m_JVT_tool_handle.setProperty("WorkingPoint", m_WorkingPointJVT ),"Failed to set Working Point property of JetJvtEfficiency for JVT");
-  RETURN_CHECK("MuonEfficiencyCorrector::initialize()", m_JVT_tool_handle.initialize(), "Failed to properly initialize CP::JetJvtEfficiency for JVT");
+  RETURN_CHECK("JetSelector::initialize()", checkToolStore<CP::JetJvtEfficiency>(m_JVT_tool_name), "" );
+  RETURN_CHECK("JetSelector::initialize()", m_JVT_tool_handle.makeNew<CP::JetJvtEfficiency>(JVT_handle_name), "Failed to create handle to CP::JetJvtEfficiency for JVT");
+  RETURN_CHECK("JetSelector::initialize()", m_JVT_tool_handle.setProperty("WorkingPoint", m_WorkingPointJVT ),"Failed to set Working Point property of JetJvtEfficiency for JVT");
+  RETURN_CHECK("JetSelector::initialize()", m_JVT_tool_handle.initialize(), "Failed to properly initialize CP::JetJvtEfficiency for JVT");
 
   //  Add the chosen WP to the string labelling the vector<SF> decoration
   //
@@ -492,15 +492,13 @@ bool JetSelector :: executeSelection ( const xAOD::JetContainer* inJets,
   int nPass(0); int nObj(0);
   bool passEventClean(true);
 
-  // static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
-  static SG::AuxElement::Accessor< int > isCleanAcc("cleanJet");
+  static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
 
   //
   // This cannot be static as multiple instance of Jet Selector would
   //   then share the same passSelDecor, including the m_decor name
   //
-  // SG::AuxElement::Decorator< char > passSelDecor( m_decor );
-  SG::AuxElement::Decorator< int > passSelDecor( m_decor );
+  SG::AuxElement::Decorator< char > passSelDecor( m_decor );
 
   for ( auto jet_itr : *inJets ) { // duplicated of basic loop
 
@@ -515,17 +513,32 @@ bool JetSelector :: executeSelection ( const xAOD::JetContainer* inJets,
     }
 
     nObj++;
+    // All selections but Cleaning
     int passSel = this->PassCuts( jet_itr );
     if ( m_decorateSelectedObjects ) {
       passSelDecor( *jet_itr ) = passSel;
     }
 
-    // event level cut if any of the N leading jets are not clean
-    if ( m_cleanEvtLeadJets > 0 && nObj <= m_cleanEvtLeadJets && passSel) {
-      if ( isCleanAcc.isAvailable( *jet_itr ) ) {
-        if( !isCleanAcc( *jet_itr ) ) { passEventClean = false; }
-      }
-    }
+    // Cleaning Selection must come after kinematic and JVT selections
+    if ( m_cleanJets && passSel && isCleanAcc.isAvailable( *jet_itr ) ) {
+      if( !isCleanAcc( *jet_itr ) ) { 
+        passSel = false;
+        if ( m_decorateSelectedObjects )
+          passSelDecor( *jet_itr ) = passSel;
+
+        // If any of the passing jets fail the recommendation is to remove the jet (and MET is wrong)
+        // If any of the N leading jets are not clean the event should be removed
+        if( m_cleanEvent || nObj <= m_cleanEvtLeadJets ){
+          passEventClean = false; 
+          if (m_debug) Info("executeSelection()", "Remove event due to bad jet with pt %f", jet_itr->pt() );
+        }// if cleaning the event 
+
+      }// if jet is not clean
+    }// if jet clean aux missing
+    if( m_useCutFlow && passSel )
+      m_jet_cutflowHist_1->Fill( m_jet_cutflow_cleaning_cut, 1 );
+
+
 
     if ( passSel ) {
       if ( m_debug ) { Info("executeSelection()", "passSel"); }
@@ -587,13 +600,7 @@ bool JetSelector :: executeSelection ( const xAOD::JetContainer* inJets,
            float jvtSF(1.0);
 	   if ( jet->pt() < m_pt_max_JVT && fabs(jet->eta()) < m_eta_max_JVT ) {
              if ( m_JVT_tool_handle->getEfficiencyScaleFactor( *jet, jvtSF ) != CP::CorrectionCode::Ok ) {
-	       // Warning( "executeSelection()", "Problem in JVT Tool getEfficiencyScaleFactor");  // added below as want to save output...
-               if(std::find(errorMessages.begin(), errorMessages.end(), "Problem in JVT Tool getEfficiencyScaleFactor") != errorMessages.end()) {
-		 errorMessagesCount[0] += 1;
-	       } else {
-		 errorMessages.push_back("Problem in JVT Tool getEfficiencyScaleFactor");
-		 errorMessagesCount.push_back(1);
-	       }
+               Warning( "executeSelection()", "Problem in JVT Tool getEfficiencyScaleFactor");
                jvtSF = 1.0;
              }
 	   }
@@ -690,18 +697,12 @@ EL::StatusCode JetSelector :: finalize ()
   if(m_debug) Info("finalize()", "%s", m_name.c_str());
 
   if ( m_useCutFlow ) {
-    if(m_debug) Info("finalize()", "Filling cutflow"); // cwk changed from histFinalize()
+    if(m_debug) Info("histFinalize()", "Filling cutflow");
     m_cutflowHist ->SetBinContent( m_cutflow_bin, m_numEventPass        );
     m_cutflowHistW->SetBinContent( m_cutflow_bin, m_weightNumEventPass  );
   }
 
   if ( m_BJetSelectTool ) { m_BJetSelectTool = nullptr; delete m_BJetSelectTool; }
-
-  // cwk error messages hack
-  for (unsigned int i=0; i<errorMessages.size(); i++) {
-    Warning("finalize()", "The following messages were recorded but manually suppressed:");
-    std::cout<<"  "<<errorMessagesCount[i]<<" times: "<<errorMessages[i]<<std::endl;
-  }
 
   return EL::StatusCode::SUCCESS;
 }
@@ -731,16 +732,6 @@ int JetSelector :: PassCuts( const xAOD::Jet* jet ) {
 
   // fill cutflow bin 'all' before any cut
   if(m_useCutFlow) m_jet_cutflowHist_1->Fill( m_jet_cutflow_all, 1 );
-
-  // clean jets
-  // static SG::AuxElement::Accessor< char > isCleanAcc("cleanJet");
-  static SG::AuxElement::Accessor< int > isCleanAcc("cleanJet");
-  if ( m_cleanJets ) {
-    if ( isCleanAcc.isAvailable( *jet ) ) {
-      if ( !isCleanAcc( *jet ) ) { return 0; }
-    }
-  }
-  if(m_useCutFlow) m_jet_cutflowHist_1->Fill( m_jet_cutflow_cleaning_cut, 1 );
 
   // pT
   if ( m_pT_max != 1e8 ) {
@@ -884,16 +875,14 @@ int JetSelector :: PassCuts( const xAOD::Jet* jet ) {
   //  Pass Keys
   //
   for ( auto& passKey : m_passKeys ) {
-    // if ( !(jet->auxdata< char >(passKey) == '1') ) { return 0;}
-    if ( !(jet->auxdata< int >(passKey) == 1) ) { return 0;}
+    if ( !(jet->auxdata< char >(passKey) == '1') ) { return 0;}
   }
 
   //
   //  Fail Keys
   //
   for ( auto& failKey : m_failKeys ){
-    // if ( !(jet->auxdata< char >(failKey) == '0') ) { return 0;}
-    if ( !(jet->auxdata< int >(failKey) == 0) ) { return 0;}
+    if ( !(jet->auxdata< char >(failKey) == '0') ) { return 0;}
   }
 
   //

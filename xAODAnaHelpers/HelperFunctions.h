@@ -37,7 +37,7 @@ namespace HelperFunctions {
   // primary vertex
   bool passPrimaryVertexSelection(const xAOD::VertexContainer* vertexContainer, int Ntracks = 2);
   int countPrimaryVertices(const xAOD::VertexContainer* vertexContainer, int Ntracks = 2);
-  const xAOD::Vertex* getPrimaryVertex(const xAOD::VertexContainer* vertexContainer);
+  const xAOD::Vertex* getPrimaryVertex(const xAOD::VertexContainer* vertexContainer, bool quiet=false);
   float getPrimaryVertexZ(const xAOD::Vertex* pvx);
   int getPrimaryVertexLocation(const xAOD::VertexContainer* vertexContainer);
   bool applyPrimaryVertexSelection( const xAOD::JetContainer* jets, const xAOD::VertexContainer* vertices );
@@ -46,6 +46,22 @@ namespace HelperFunctions {
   std::string replaceString(std::string subjet, const std::string& search, const std::string& replace);
   std::vector<TString> SplitString(TString& orig, const char separator);
   float dPhi(float phi1, float phi2);
+  bool has_exact(const std::string input, const std::string flag); 
+
+  /**
+    Function which returns the position of the n-th occurence of a character in a string searching backwards.
+    Returns -1 if no occurencies are found.
+
+    Source: http://stackoverflow.com/questions/18972258/index-of-nth-occurrence-of-the-string
+  */
+  std::size_t string_pos( const std::string& inputstr, const char& occurence, int n_occurencies );
+
+  /**
+    Function which returns the WP for ISO/ID from a config file.
+    Returns empty string if no WP is found.
+
+  */  
+  std::string parse_wp( const std::string& type, const std::string& config_name );
 
   /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*\
   |                                                                            |
@@ -112,58 +128,55 @@ namespace HelperFunctions {
     fastjet::JetAlgorithm s_alg = fastjet::kt_algorithm);
 
 
+
   // miscellaneous
   bool sort_pt(xAOD::IParticle* partA, xAOD::IParticle* partB);
 
   std::vector< CP::SystematicSet > getListofSystematics( const CP::SystematicSet inSysts, std::string systName, float systVal, bool debug = false );
-  
+
   /**
    * @author Marco Milesi (marco.milesi@cern.ch)
-   * @brief Function to copy a subset of a generic input xAOD container into a generic output xAOD container. 
+   * @brief Function to copy a subset of a generic input xAOD container into a generic output xAOD container.
    *
    * If the optional parameters aren't specified, the function will just make a full copy of the input
    * container into the output one.
    *
    * @param [in] intCont input container
-   * @param [in,out] outCont output container   
+   * @param [in,out] outCont output container
    * @param [in] flagSelect (optional) the name of the decoration for objects passing a certain selection (e.g. "passSel", "overlaps" ...). When explicitly specified, it must not be empty.
    * @param [in] tool_name (optional) an enum specifying the tool type which is calling this function (definition in `HelperClasses::ToolName`)
-   */  
+   */
   template< typename T1, typename T2 >
     StatusCode makeSubsetCont( T1*& intCont, T2*& outCont, const std::string& flagSelect = "", HelperClasses::ToolName tool_name = HelperClasses::ToolName::DEFAULT ){
 
      if ( tool_name == HelperClasses::ToolName::DEFAULT ) {
-       
+
        for ( auto in_itr : *(intCont) ) { outCont->push_back( in_itr ); }
        return StatusCode::SUCCESS;
-     
+
      }
 
      if ( flagSelect.empty() ) {
-       Error("HelperFunctions::makeSubsetCont()", "flagSelect is an empty string, and passing a non-DEFAULT tool (presumably a SELECTOR, or OVERLAPREMOVER). Please pass a non-empty flagSelect!" );
-       return StatusCode::FAILURE;	 
-     }  
-       
+       Error("HelperFunctions::makeSubsetCont()", "flagSelect is an empty string, and passing a non-DEFAULT tool (presumably a SELECTOR). Please pass a non-empty flagSelect!" );
+       return StatusCode::FAILURE;
+     }
+
      SG::AuxElement::ConstAccessor<char> myAccessor(flagSelect);
-     
-     for ( auto in_itr : *(intCont) ) { 
-       
+
+     for ( auto in_itr : *(intCont) ) {
+
        if ( !myAccessor.isAvailable(*(in_itr)) ) {
      	 std::stringstream ss; ss << in_itr->type();
          Error("HelperFunctions::makeSubsetCont()", "flag %s is missing for object of type %s ! Will not make a subset of its container", flagSelect.c_str(), (ss.str()).c_str() );
      	 return StatusCode::FAILURE;
        }
-      
-       if ( tool_name == HelperClasses::ToolName::OVERLAPREMOVER ){ /* this tool uses reverted logic for "flagSelect", that's why I put this check */
-     	 if ( !myAccessor(*(in_itr)) ){ outCont->push_back( in_itr ); }
-       } else {
+
      	 if ( myAccessor(*(in_itr)) ) { outCont->push_back( in_itr ); }
-       }
-     
+
      }
-            
+
      return StatusCode::SUCCESS;
-     
+
    }
 
   /*    type_name<T>()      The awesome type demangler!
@@ -240,6 +253,49 @@ namespace HelperFunctions {
     }
     return StatusCode::SUCCESS;
   }
+
+  /*  isAvailable()    return true if an arbitrary object from TStore / TEvent is availible
+        - tries to make your life simple by providing a one-stop container check shop for all types
+        @ cont  : pass in a pointer to the object to store the retrieved container in
+        @ name  : the name of the object to look up
+        @ event : the TEvent, usually wk()->xaodEvent(). Set to 0 to not search TEvent.
+        @ store : the TStore, usually wk()->xaodStore(). Set to 0 to not search TStore.
+        @ debug : turn on more verbose output, helpful for debugging
+
+      Example Usage:
+      const xAOD::JetContainer* jets(0);
+      // look for "AntiKt10LCTopoJets" in both TEvent and TStore
+      HelperFunctions::isAvailable(jets, "AntiKt10LCTopoJets", m_event, m_store) 
+      // look for "AntiKt10LCTopoJets" in only TStore
+      HelperFunctions::isAvailable(jets, "AntiKt10LCTopoJets", 0, m_store)
+      // look for "AntiKt10LCTopoJets" in only TEvent, enable verbose output
+      HelperFunctions::retrieve(jets, "AntiKt10LCTopoJets", m_event, 0, true)
+  */
+  template <typename T>
+  bool isAvailable(T*& cont, std::string name, xAOD::TEvent* event, xAOD::TStore* store, bool debug=false){
+    /* Checking Order:
+        - check if store contains 'xAOD::JetContainer' named 'name'
+        --- checkstore store
+        - check if event contains 'xAOD::JetContainer' named 'name'
+        --- checkstore event
+    */
+    if(debug) Info("HelperFunctions::isAvailable()", "\tAttempting to retrieve %s of type %s", name.c_str(), type_name<T>().c_str());
+    if((store == NULL) && (debug))                      Info("HelperFunctions::isAvailable()", "\t\tLooking inside: xAOD::TEvent");
+    if((event == NULL) && (debug))                      Info("HelperFunctions::isAvailable()", "\t\tLooking inside: xAOD::TStore");
+    if((event != NULL) && (store != NULL) && (debug))   Info("HelperFunctions::isAvailable()", "\t\tLooking inside: xAOD::TStore, xAOD::TEvent");
+    if((store != NULL) && (store->contains<T>(name))){
+      if(debug) Info("HelperFunctions::isAvailable()", "\t\t\tFound inside xAOD::TStore");
+      return true;
+    } else if((event != NULL) && (event->contains<T>(name))){
+      if(debug) Info("HelperFunctions::isAvailable()", "\t\t\tFound inside xAOD::TEvent");
+      return true;
+    } else {
+      return false;
+    }
+    return false;
+  }
+
+
 
   /* update with better logic
       -- call HelperFunctions::retrieve() instead
@@ -446,7 +502,6 @@ namespace HelperFunctions {
       tree->SetBranchStatus  ((name+"_"+branch).c_str()  , 1);
       tree->SetBranchAddress ((name+"_"+branch).c_str()  , variable);
     }
-
 
 
 } // close namespace HelperFunctions

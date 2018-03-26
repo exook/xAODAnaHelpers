@@ -11,6 +11,7 @@
 
 // algorithm wrapper
 #include "xAODAnaHelpers/Algorithm.h"
+#include "xAODAnaHelpers/OnlineBeamSpotTool.h"
 #include "TrigDecisionTool/Feature.h"
 
 namespace Trig {
@@ -29,6 +30,7 @@ public:
     @brief name of trigger chain to load
    */
   std::string m_trigItem;
+  std::string m_trigItemVeto;
 
   /**
     @brief Do we load a full BJet trigger chain?
@@ -41,6 +43,12 @@ public:
   bool        m_doHLTJet;
 
   /**
+    @brief Do we read in the HLT tracks?
+   */
+  bool        m_readHLTTracks;
+
+
+  /**
     @brief Name of the output container
    */
   std::string m_outContainerName;
@@ -51,6 +59,7 @@ private:
   std::string                  m_jetName;       //!
   std::string                  m_trkName;       //!
   std::string                  m_vtxName;       //!
+  xAH::OnlineBeamSpotTool      m_onlineBSTool;  //!
 
   EL::StatusCode buildHLTBJets ();
   EL::StatusCode buildHLTJets  ();

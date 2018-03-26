@@ -77,6 +77,8 @@ ElectronCalibrator :: ElectronCalibrator (std::string className) :
   m_esModel                 = "";
   m_decorrelationModel      = "";
 
+  m_setAFII                 = false;
+
   m_useDataDrivenLeakageCorr = false;
 
 }
@@ -197,9 +199,10 @@ EL::StatusCode ElectronCalibrator :: initialize ()
     //
     const std::string stringMeta = wk()->metaData()->castString("SimulationFlavour");
 
-    if ( !stringMeta.empty() && ( stringMeta.find("AFII") != std::string::npos ) ) {
+    if ( m_setAFII || ( !stringMeta.empty() && ( stringMeta.find("AFII") != std::string::npos ) ) ){
+
       Info("initialize()", "Setting simulation flavour to AFII");
-      RETURN_CHECK( "ElectronCalibrator::initialize()", m_EgammaCalibrationAndSmearingTool->setProperty("useAFII", true),"Failed to set property useAFII");
+      RETURN_CHECK( "ElectronCalibrator::initialize()", m_EgammaCalibrationAndSmearingTool->setProperty("useAFII", 1),"Failed to set property useAFII");
 
     }
   }
@@ -217,13 +220,17 @@ EL::StatusCode ElectronCalibrator :: initialize ()
   m_systList = HelperFunctions::getListofSystematics( recSyst, m_systName, m_systVal, m_debug );
 
   Info("initialize()","Will be using EgammaCalibrationAndSmearingTool systematic:");
+  std::vector< std::string >* SystElectronsNames = new std::vector< std::string >;
   for ( const auto& syst_it : m_systList ) {
     if ( m_systName.empty() ) {
       Info("initialize()","\t Running w/ nominal configuration only!");
       break;
     }
+    SystElectronsNames->push_back(syst_it.name());
     Info("initialize()","\t %s", (syst_it.name()).c_str());
   }
+
+  RETURN_CHECK("ElectronCalibrator::initialize()",m_store->record(SystElectronsNames, "ele_Syst"+m_name ), "Failed to record vector of ele systs names.");
 
   // ***********************************************************
 

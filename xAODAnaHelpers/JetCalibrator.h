@@ -22,6 +22,7 @@
 #include "JetResolution/JERSmearingTool.h"
 #include "JetSelectorTools/JetCleaningTool.h"
 #include "JetMomentTools/JetVertexTaggerTool.h"
+#include "AsgTools/AnaToolHandle.h"
 
 // algorithm wrapper
 #include "xAODAnaHelpers/Algorithm.h"
@@ -45,6 +46,7 @@ public:
   std::string m_JESUncertConfig;
   std::string m_JESUncertMCType;
   bool m_setAFII;
+  bool m_forceInsitu;
 
   bool m_isTrigger; // whether the jet collection is trigger or not (soon: different calibrations)
 
@@ -78,20 +80,17 @@ private:
   std::vector<int> m_systType; //!
 
   // tools
-  JetCalibrationTool       * m_jetCalibration; //!
+  asg::AnaToolHandle<IJetCalibrationTool> m_JetCalibrationTool_handle; //!
+  asg::AnaToolHandle<ICPJetUncertaintiesTool> m_JetUncertaintiesTool_handle; //!
 
-  JetUncertaintiesTool     * m_JESUncertTool;      //!
+  asg::AnaToolHandle<IJERTool> m_JERTool_handle;    //!
+  asg::AnaToolHandle<IJERSmearingTool> m_JERSmearingTool_handle;    //!
 
-  JERTool                  * m_JERTool;        //!
-  JERSmearingTool          * m_JERSmearTool;   //!
-  ToolHandle<IJERTool>       m_JERToolHandle;  //!
+  asg::AnaToolHandle<IJetUpdateJvt> m_JVTUpdateTool_handle; //!
 
-  JetVertexTaggerTool      * m_JVTTool;        //!
-  ToolHandle<IJetUpdateJvt>  m_JVTToolHandle;  //!
-
-  JetCleaningTool          * m_jetCleaning;    //!
+  asg::AnaToolHandle<IJetSelector> m_JetCleaningTool_handle; //!
   std::vector<std::string>  m_decisionNames;    //!
-  std::vector< JetCleaningTool* > m_allJetCleaningTools;   //!
+  std::vector< asg::AnaToolHandle<IJetSelector> > m_AllJetCleaningTool_handles;   //!
 
 
   // variables that don't get filled at submission time should be

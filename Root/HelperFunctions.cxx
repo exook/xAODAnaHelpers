@@ -312,7 +312,7 @@ TLorentzVector HelperFunctions::jetTrimming(
 
 }
 
-const xAOD::Vertex* HelperFunctions::getPrimaryVertex(const xAOD::VertexContainer* vertexContainer)
+const xAOD::Vertex* HelperFunctions::getPrimaryVertex(const xAOD::VertexContainer* vertexContainer, bool quiet)
 {
   // vertex types are listed on L328 of
   // https://svnweb.cern.ch/trac/atlasoff/browser/Event/xAOD/xAODTracking/trunk/xAODTracking/TrackingPrimitives.h
@@ -321,7 +321,9 @@ const xAOD::Vertex* HelperFunctions::getPrimaryVertex(const xAOD::VertexContaine
     if(vtx_itr->vertexType() != xAOD::VxType::VertexType::PriVtx) { continue; }
     return vtx_itr;
   }
-  Warning("HelperFunctions::getPrimaryVertex()","No primary vertex was found! Returning nullptr");
+
+  if(!quiet)
+    Warning("HelperFunctions::getPrimaryVertex()","No primary vertex was found! Returning nullptr");
 
   return 0;
 }
@@ -434,11 +436,96 @@ std::vector< CP::SystematicSet > HelperFunctions::getListofSystematics(const CP:
 }
 
 
-
 float HelperFunctions::dPhi(float phi1, float phi2)
 {
   float dPhi = phi1 - phi2;
   if(dPhi > 3.14)  dPhi -= 2*3.14;
   if(dPhi < -3.14) dPhi += 2*3.14;
   return dPhi;
+}
+
+
+std::size_t HelperFunctions::string_pos( const std::string& inputstr, const char& occurence, int n_occurencies )
+{
+
+  std::string read("");
+  std::string cache(inputstr);
+
+  for ( int i(1); i < n_occurencies+1; ++i ) {
+    std::size_t found = cache.rfind(occurence);
+    read += cache.substr(found);
+    cache.erase(found);
+    if ( i == n_occurencies ) { return ( inputstr.size() - read.size() ) + 1; }
+  }
+  return std::string::npos;
+}
+
+
+std::string HelperFunctions::parse_wp( const std::string& type, const std::string& config_name )
+{
+
+  std::string wp("");
+  
+  std::size_t init;
+  std::size_t end;
+  
+  if ( type.compare("ISO") == 0 ) {
+    
+    std::size_t found_iso = config_name.find("_isol");
+    
+    // Return empty string if no isolation in config name
+    
+    if ( found_iso == std::string::npos ) { return wp; }
+    
+    init = found_iso + 5; 
+    end  = config_name.find(".root");
+  
+  } else if ( type.compare("ID") == 0 ) {
+ 
+    std::size_t found_ID = config_name.find("LLH");
+    
+    // Return empty string if no LLH in config name
+    
+    if ( found_ID == std::string::npos ) { return wp; }
+       
+    init = string_pos( config_name, '.', 2 );
+    end  = found_ID;
+    
+  } else if ( type.compare("TRIG") == 0 ) {
+ 
+    std::size_t found_trigger = config_name.find("trigger");
+    
+    // Return empty string if no LLH in config name
+    
+    if ( found_trigger == std::string::npos ) { return wp; }
+       
+    init = string_pos( config_name, '.', 3 );
+    end  = string_pos( config_name, '.', 2 ) - 1;
+    
+  } else {
+  
+    Warning("HelperFunctions::parse_wp()","WP type can be either 'ISO' or 'ID'. Please check passed parameters of this function. Returning empty WP.");
+    return wp;
+  
+  }
+  
+  wp = config_name.substr( init, (end - init) );
+  
+  if ( type.compare("ID") == 0 ) { wp += "LLH"; }
+
+  return wp;
+}
+
+bool HelperFunctions::has_exact(const std::string input, const std::string flag) 
+{ 
+  std::set<std::string> inputSet;
+  
+  // parse and split by space
+  std::string token;
+  std::istringstream ss(input);
+  while ( std::getline(ss, token, ' ') )
+    inputSet.insert(token);
+
+
+  return inputSet.find(flag) != inputSet.end(); 
 }

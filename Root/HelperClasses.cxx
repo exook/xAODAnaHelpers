@@ -129,6 +129,24 @@ namespace HelperClasses{
     m_trackhitcont  = has_exact("trackhitcont");
     m_effSF         = has_exact("effSF");
     m_energyLoss    = has_exact("energyLoss");
+   
+    // working points combinations for trigger corrections 
+    std::string token;
+    std::string reco_prfx = "Reco";
+    std::string isol_prfx = "Iso";
+    std::string trig_prfx = "HLT";
+    
+    std::istringstream ss(m_configStr);
+    while ( std::getline(ss, token, ' ') ) {
+      if ( token.compare( 0, reco_prfx.length(), reco_prfx ) == 0 ) { m_recoWPs.push_back(token); }
+      if ( token.compare( 0, isol_prfx.length(), isol_prfx ) == 0 ) { m_isolWPs.push_back(token); }
+      if ( token.compare( 0, trig_prfx.length(), trig_prfx ) == 0 ) { m_trigWPs.push_back(token); }
+    }  
+    
+    //for (const auto& isol : isolWPs) { m_isolWPsMap[isol] = has_exact(isol); }                        
+    //for (const auto& reco : recoWPs) { m_recoWPsMap[reco] = has_exact(reco); }                        
+    //for (const auto& trig : trigWPs) { m_trigWPsMap[trig] = has_exact(trig); }                        
+
   }
 
   void ElectronInfoSwitch::initialize(){
@@ -138,6 +156,30 @@ namespace HelperClasses{
     m_trackparams   = has_exact("trackparams");
     m_trackhitcont  = has_exact("trackhitcont");
     m_effSF         = has_exact("effSF");
+    // working points for scale-factors
+
+    // working points combinations for trigger corrections 
+    std::string token;
+    std::string PID_keyword = "LLH";
+    std::string isol_keyword = "isol";
+    std::string trig_keyword1 = "DI_E_";
+    std::string trig_keyword2 = "MULTI_L_";
+    std::string trig_keyword3 = "SINGLE_E_";
+    std::string trig_keyword4 = "TRI_E_";
+    
+    std::istringstream ss(m_configStr);
+    while ( std::getline(ss, token, ' ') ) {
+     if ( token.find(PID_keyword ) != std::string::npos ) { m_PIDWPs.push_back(token); }
+     if ( token.find("isolNoRequirement") != std::string::npos ) { m_isolWPs.push_back(""); }
+     if ( (token.compare( 0, isol_keyword.length(), isol_keyword ) == 0) && 
+           token!="isolation" && 
+           token!="isolNoRequirement" ) { m_isolWPs.push_back(token); }
+     if ( (token.find(trig_keyword1 ) != std::string::npos) ||
+          (token.find(trig_keyword2 ) != std::string::npos) ||
+          (token.find(trig_keyword3 ) != std::string::npos) ||
+          (token.find(trig_keyword4 ) != std::string::npos)  ) { m_trigWPs.push_back(token); }
+   } 
+
   }
 
   void PhotonInfoSwitch::initialize(){
@@ -148,10 +190,13 @@ namespace HelperClasses{
 
   void JetInfoSwitch::initialize(){
     m_substructure  = has_exact("substructure");
+    m_bosonCount    = has_exact("bosonCount");
+    m_VTags         = has_exact("VTags");
     m_rapidity      = has_exact("rapidity");
     m_clean         = has_exact("clean");
     m_energy        = has_exact("energy");
     m_scales        = has_exact("scales");
+    m_constscaleEta = has_exact("constscaleEta");
     m_resolution    = has_exact("resolution");
     m_truth         = has_exact("truth");
     m_truthDetails  = has_exact("truth_details");
@@ -192,9 +237,33 @@ namespace HelperClasses{
       m_trackName         = "";
     }
 
+
+    if(has_match("trackJetName")){
+      m_trackJets       = true;
+      std::string input(m_configStr);
+      // erase everything before the interesting string
+      input.erase( 0, input.find("trackJetName_") );
+      // erase everything after the interesting string
+      // only if there is something after the string
+      if( input.find(" ") != std::string::npos ) {
+        input.erase( input.find_first_of(" "), input.size() );
+      }
+      // remove trackJetName_ to just leave the tack name
+      input.erase(0,13);
+
+      m_trackJetName = input;
+    }else{
+      m_trackJets            = false;
+      m_trackJetName         = "";
+    }
+
+
     m_hltVtxComp          = has_exact("hltVtxComp");
     m_charge              = has_exact("charge");
+    m_etaPhiMap           = has_exact("etaPhiMap");
+    m_byAverageMu         = has_exact("byAverageMu");
     m_vsLumiBlock         = has_exact("vsLumiBlock");
+    m_lumiB_runN          = has_exact("lumiB_runN");
 
     m_sfFTagFix.clear();
     if( has_match( "sfFTagFix" ) ) {

@@ -120,26 +120,84 @@ EL::StatusCode Writer :: execute ()
   // code will go.
   m_numEvent++;
 
+  // original order:
   // try to find the containers in m_event - if there then copy entire container directly
   // if not found in m_event, look in m_store - user created - write aux store as well
+
+  // BUT they all exist in m_event also for TreeAlgo (but with failed metadata)
+  // so:
+  // needs to be non-const for record(), since copy() fails as it's a shallow copy
+  // if const, then can't record()
+  // problem: why is it const???
+  // needs to be const for TreeAlgo
+  // need to manually look for ....ShallowCopy and ....ShallowCopyAux instead?
+  // look for these first in TStore, then if don't exist go for hard copy approach???
+
+  // selector is also buggered
+
+  ANA_MSG_INFO( "This is the contents of m_store:");
+  m_store->print();
+
+  // ANA_MSG_INFO( "This is the contents of m_event:");
+  // m_event->print();
+  
+
   for( auto contName : m_jetContainerNames ) {
 
+    // step 1, look got ...ShallowCopy in m_store
+    TString shallowName( contName + "ShallowCopy" );
+    ANA_MSG_INFO( " Looking for " << shallowName.Data() << " in m_store");
+    xAOD::JetContainer* inJets(nullptr);
+    if ( HelperFunctions::retrieve(inJets, shallowName.Data(), 0, m_store, msg()).isSuccess() ){
+      // Record the objects into the output xAOD:
+      ANA_MSG_INFO( " Write a shallow copy collection " << contName.Data() << " of size " << inJets->size() );
+      if( ! m_event->record( inJets, contName.Data() ) ) {
+        ANA_MSG_ERROR(m_name << ": Could not record " << contName.Data());
+        return EL::StatusCode::FAILURE;
+      }
+      ANA_MSG_INFO( " Wrote a collection " << contName.Data());
+      
+      // get pointer to associated aux container
+      xAOD::ShallowAuxContainer* inJetsAux = 0;
+      ANA_MSG_INFO( " Retrieve Aux data for " << shallowName.Data());
+      TString auxName( contName + "Aux." );
+      TString auxShallowName( shallowName + "Aux." );
+      // this doesn't work despite it being present....
+      if ( HelperFunctions::retrieve(inJetsAux, auxShallowName.Data(), 0, m_store, msg()).isSuccess() ){
+        ANA_MSG_ERROR(m_name << ": Could not get Aux data " << auxShallowName.Data());
+        return EL::StatusCode::FAILURE;
+      }
+      bool shallowIO = false;
+      ANA_MSG_INFO( " Set shallow IO to " << shallowIO);
+      inJetsAux->setShallowIO( shallowIO ); // if have its 'parent'
+      
+      if( ! m_event->record( inJetsAux, auxName.Data() ) ) {
+        ANA_MSG_ERROR( m_name << ": Could not record aux store for " << contName.Data());
+        return EL::StatusCode::FAILURE;
+      }
+      ANA_MSG_INFO( " Wrote Aux store " << auxName.Data());
+      continue;
+    }
+    
+
+    // now look for the "original" container
+    ANA_MSG_INFO( " Didn't find in m_store, look in m_event");
     const xAOD::JetContainer* inJetsConst(nullptr);
-    // look in event
+    ANA_MSG_INFO( " Trying to retrieve " << contName.Data() << " from  m_event into a const xAOD::JetContainer" );
     if ( HelperFunctions::retrieve(inJetsConst, contName.Data(), m_event, 0, msg()).isSuccess() ) {
       // without modifying the contents of it:
-      ANA_MSG_INFO( " Write a collection " << contName.Data() << inJetsConst->size() );
+      ANA_MSG_INFO( " Write a deep copy collection " << contName.Data() << " of size " << inJetsConst->size() );
       m_event->copy( contName.Data() );
       ANA_MSG_INFO( " Wrote a collection " << contName.Data());
       continue;
     }
 
-    // look in store
-    xAOD::JetContainer* inJets(nullptr);
+    // look in store    
+    ANA_MSG_INFO( " Didn't find in m_event, look in m_store");
     if ( HelperFunctions::retrieve(inJets, contName.Data(), 0, m_store, msg()).isSuccess() ){
-//      // FIXME add something like this
-//      jets_shallowCopy.second->setShallowIO( false ); // true = shallow copy, false = deep copy
-//      // if true should have something like this line somewhere:
+      // FIXME add something like this
+      // jets_shallowCopy.second->setShallowIO( false ); // true = shallow copy, false = deep copy
+      // if true should have something like this line somewhere:
 
       // Record the objects into the output xAOD:
       ANA_MSG_INFO( " Write a collection " << contName.Data() << inJets->size() );
@@ -150,19 +208,21 @@ EL::StatusCode Writer :: execute ()
       ANA_MSG_INFO( " Wrote a collection " << contName.Data());
 
       // get pointer to associated aux container
-      xAOD::JetAuxContainer* inJetsAux = 0;
-      ANA_MSG_INFO( " Wrote a aux store " << contName.Data());
+      xAOD::ShallowAuxContainer* inJetsAux = 0;
+      ANA_MSG_INFO( " Retrieve Aux data for " << contName.Data());
       TString auxName( contName + "Aux." );
       if ( HelperFunctions::retrieve(inJetsAux, auxName.Data(), 0, m_store, msg()).isSuccess() ){
         ANA_MSG_ERROR(m_name << ": Could not get Aux data for " << contName.Data());
         return EL::StatusCode::FAILURE;
       }
-      ANA_MSG_INFO( " Wrote a aux store " << contName.Data());
-
+      ANA_MSG_INFO( " Set shallow IO to " << false);
+      inJetsAux->setShallowIO( false ); // if have its 'parent'
+      
       if( ! m_event->record( inJetsAux, auxName.Data() ) ) {
         ANA_MSG_ERROR( m_name << ": Could not record aux store for " << contName.Data());
         return EL::StatusCode::FAILURE;
       }
+      ANA_MSG_INFO( " Wrote Aux store " << auxName.Data());
     }
     // could not find the container - problems
     else {

@@ -33,7 +33,15 @@ namespace xAH {
 
     protected:
       virtual void updateParticle(uint idx, Cluster& cluster);
-
+    private:
+      std::vector<float>* m_rawE;
+      std::vector<float>* m_rawEta;
+      std::vector<float>* m_rawPhi;
+      std::vector<float>* m_rawM;
+      std::vector<float>* m_calE;
+      std::vector<float>* m_calEta;
+      std::vector<float>* m_calPhi;
+      std::vector<float>* m_calM;
     };
 }
 #endif // xAODAnaHelpers_ClusterContainer_H
